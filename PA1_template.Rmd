@@ -5,21 +5,147 @@ output:
     keep_md: true
 ---
 
+# Introduction
+This assignment is to analyze a person's daily activities in October and November in 2012. The data includes the number of steps taken in 5 minute intervals each day.
+
+Of particular skills used - to convert character date variable to numeric date variable and plot the time series.  Minimum imputation is used to replace NAs with median.  Convert weekdays to 2 categories of workdays and offdays and to compare the activity pattern. Library(dplyr) is used for the most part for data management. Library(ggplot2) is used for visualization.
+
+## Set Global Options
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Load Libraries
+```{r load}
+
+#remove.packages("rlang")
+#install.packages("rlang")
+#library(rlang)
+#library(dplyr)
+
+library(data.table)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+
+```
 
 ## Loading and preprocessing the data
+```{r data}
 
+act <- fread("activity.csv")
 
+act$date <- as.Date(act$date, "%Y%m%d")
+```
+
+### Missing Value Count
+There were a total of 2304 missing values.
+```{r miss_cnt}
+
+table(is.na(act$steps))
+
+```
 
 ## What is mean total number of steps taken per day?
+There were 61 days in October and November 2012.
+```{r daily}
 
+actdaily <- act %>% group_by(date) %>% 
+  summarize(total_steps = sum(steps))
 
+# str(actdaily)
+
+```
+
+## Summary of Total Steps by Date
+```{r sum1}
+
+summary(actdaily$total_steps)
+
+## the mean is 10,766 steps
+## the median is 10,765 steps
+```
 
 ## What is the average daily activity pattern?
+## Histogram of Daily Total Steps
+```{r}
 
+ggplot(actdaily, aes(x = total_steps)) +
+    geom_histogram(fill = "blue", binwidth = 1000) +
+    labs(title = "Daily Steps", x = "Daily Steps", y = "Frequency")
 
+```
 
 ## Imputing missing values
+## Activity Analysis with Imputation
+```{r impute}
 
+## impute NAs with median value
+act$steps[is.na(act$steps)] <- median(act$steps, na.rm = T)
 
+actdaily_imp <- act %>% group_by(date) %>% 
+  summarize(total_steps = sum(steps))
+
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+## Histogram of Daily Total Steps with Imputation
+```{r imp1}
+
+ggplot(actdaily_imp, aes(x = total_steps)) +
+    geom_histogram(fill = "blue", binwidth = 1000) +
+    labs(title = "Daily Steps", x = "Daily Steps", y = "Frequency")
+
+```
+
+## Summary of Total Steps with Imputation
+```{r imp2}
+
+summary(actdaily_imp$total_steps)
+
+## Median is 10,395 steps
+
+## Mean is 9,354 steps with imputation
+
+```
+
+## Comparison of Activity between Workdays and Offdays
+```{r wday_comp}
+
+act$date <- as.POSIXct(act$date, format = "%Y-%m-%d")
+
+act$Weekdays <- weekdays(act$date)
+
+#table(act$Weekdays)
+
+act[grepl(pattern = "Monday|Tuesday|Wednesday|Thursday|Friday", x = Weekdays), "weekday_cat"] <- "workdays"
+
+act[grepl(pattern = "Saturday|Sunday", x = Weekdays), "weekday_cat"] <- "offdays"
+act[, `weekday_cat` := as.factor(`weekday_cat`)]
+
+```
+
+## Processed Data for Panel Plots
+```{r pplot1}
+##View(act)
+
+analytic <- act %>% 
+  group_by(interval, weekday_cat) %>% 
+  summarize(avg_steps = mean(steps))
+
+```
+
+## Panel Plots for Workdays and Offdays
+```{r pplot2}
+
+ggplot(analytic, aes(x = interval, y = avg_steps, color = weekday_cat)) +
+    geom_line() +
+    facet_wrap(~ weekday_cat) +
+    labs(title = "Workdays and Offdays Activity Comparison", 
+             x = "Average Steps by Interval", 
+             y = "Average Steps")
+
+```
+
